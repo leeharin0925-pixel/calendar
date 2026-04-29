@@ -10,17 +10,18 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;color:#1a1a1a}
 .app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding:0 0 48px}
-.topbar{background:#185FA5;color:#fff;padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.topbar{background:#185FA5;color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:10}
 .topbar-title{font-size:17px;font-weight:600}
 .topbar-sub{font-size:12px;opacity:.8;margin-top:2px}
 .section{padding:16px}
 .tab-row{display:flex;border-radius:10px;overflow:hidden;border:1px solid #ddd;margin-bottom:14px}
-.tab{flex:1;padding:10px 0;font-size:14px;font-weight:500;text-align:center;cursor:pointer;background:#fff;color:#666;border:none;transition:all .15s}
+.tab{flex:1;padding:10px 0;font-size:14px;font-weight:500;text-align:center;cursor:pointer;background:#fff;color:#666;border:none}
 .tab.active{background:#185FA5;color:#fff}
 .mic-area{display:flex;flex-direction:column;align-items:center;padding:8px 0 12px}
-.mic-btn{width:80px;height:80px;border-radius:50%;background:#185FA5;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(24,95,165,0.3)}
-.mic-btn.rec{background:#E24B4A;box-shadow:0 2px 8px rgba(226,75,74,0.4),0 0 0 12px rgba(226,75,74,0.12)}
-.mic-label{margin-top:10px;font-size:13px;color:#666;font-weight:500}
+.mic-btn{width:90px;height:90px;border-radius:50%;background:#185FA5;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(24,95,165,0.3);user-select:none;-webkit-user-select:none;touch-action:none}
+.mic-btn.rec{background:#E24B4A;box-shadow:0 2px 8px rgba(226,75,74,0.4),0 0 0 14px rgba(226,75,74,0.15)}
+.mic-label{margin-top:12px;font-size:14px;color:#444;font-weight:600;text-align:center;line-height:1.5}
+.mic-hint{margin-top:4px;font-size:12px;color:#aaa;text-align:center}
 .transcript{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:12px;padding:12px 14px;min-height:52px;font-size:14px;color:#1a1a1a;line-height:1.6;margin-bottom:12px;word-break:break-all}
 .transcript.ph{color:#aaa;font-size:13px}
 .manual-input{width:100%;border:1px solid #ddd;border-radius:12px;padding:12px 14px;font-size:14px;color:#1a1a1a;resize:none;background:#fff;line-height:1.6;outline:none;font-family:inherit}
@@ -71,10 +72,8 @@ html,body{height:100%;background:#f5f5f5;font-family:-apple-system,BlinkMacSyste
 </div>
 <div class="app">
   <div class="topbar">
-    <div>
-      <div class="topbar-title">음성 일정 캘린더</div>
-      <div class="topbar-sub">말하면 바로 저장돼요</div>
-    </div>
+    <div class="topbar-title">음성 일정 캘린더</div>
+    <div class="topbar-sub">꾹 누르고 말하면 바로 저장돼요</div>
   </div>
   <div class="section">
     <div class="tab-row">
@@ -83,15 +82,16 @@ html,body{height:100%;background:#f5f5f5;font-family:-apple-system,BlinkMacSyste
     </div>
     <div id="micSection">
       <div class="mic-area">
-        <button class="mic-btn" id="micBtn" onclick="toggleMic()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="30" height="30">
+        <button class="mic-btn" id="micBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="34" height="34">
             <rect x="9" y="2" width="6" height="11" rx="3"/>
             <path d="M5 10a7 7 0 0 0 14 0"/>
             <line x1="12" y1="19" x2="12" y2="22"/>
             <line x1="8" y1="22" x2="16" y2="22"/>
           </svg>
         </button>
-        <span class="mic-label" id="micLabel">눌러서 말하기</span>
+        <span class="mic-label" id="micLabel">꾹 누르고 말하세요</span>
+        <span class="mic-hint">손 떼면 자동으로 인식돼요</span>
       </div>
       <div id="transcript" class="transcript ph">인식된 내용이 여기 표시돼요<br>예) "29일 세시 송탄 설치 30일 네시 평택 세척"</div>
     </div>
@@ -124,6 +124,55 @@ html,body{height:100%;background:#f5f5f5;font-family:-apple-system,BlinkMacSyste
 let events=[],inputText='',isRec=false,recog=null;
 let vy=new Date().getFullYear(),vm=new Date().getMonth(),curTab='mic';
 try{events=JSON.parse(localStorage.getItem('vc_ev3')||'[]');}catch(e){}
+
+// AI 일정 파싱 - 직접 처리 (API 없이)
+function parseScheduleLocally(txt) {
+  const results = [];
+  const now = new Date();
+  const yr = vy, mo = vm + 1;
+
+  const timeMap = {
+    '한시':13,'두시':14,'세시':15,'네시':16,'다섯시':17,
+    '여섯시':18,'일곱시':19,'여덟시':20,'아홉시':9,
+    '열시':10,'열한시':11,'열두시':12,
+    '1시':13,'2시':14,'3시':15,'4시':16,'5시':17,
+    '6시':18,'7시':19,'8시':20,'9시':9,'10시':10,'11시':11,'12시':12
+  };
+
+  // 쉼표나 숫자+일 패턴으로 분리
+  const parts = txt.split(/(?=\d+일)/);
+
+  parts.forEach(part => {
+    part = part.trim();
+    if (!part) return;
+
+    // 날짜 추출
+    const dayMatch = part.match(/(\d+)일/);
+    if (!dayMatch) return;
+    const day = parseInt(dayMatch[1]);
+    const dateStr = `${yr}-${String(mo).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
+    // 시간 추출
+    let hour = '';
+    for (const [key, val] of Object.entries(timeMap)) {
+      if (part.includes(key)) { hour = String(val).padStart(2,'0') + ':00'; break; }
+    }
+
+    // 제목: 날짜/요일/시간 제거하고 남은 것
+    let title = part
+      .replace(/\d+일/, '')
+      .replace(/월요일|화요일|수요일|목요일|금요일|토요일|일요일/, '')
+      .replace(/한시|두시|세시|네시|다섯시|여섯시|일곱시|여덟시|아홉시|열한시|열두시|열시/, '')
+      .replace(/\d+시/, '')
+      .replace(/오전|오후/, '')
+      .trim();
+
+    if (title) results.push({ date: dateStr, time: hour, title });
+  });
+
+  return results;
+}
+
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){
   recog=new SR();recog.lang='ko-KR';recog.interimResults=true;recog.continuous=false;
@@ -135,12 +184,20 @@ if(SR){
     else if(intr){el.textContent=intr;el.className='transcript';}
   };
   recog.onend=()=>stopRec();
-  recog.onerror=e=>{stopRec();setStatus('마이크 오류: '+e.error,'err');};
+  recog.onerror=e=>{stopRec();};
+
+  // 꾹 누르기 이벤트
+  const btn=document.getElementById('micBtn');
+  btn.addEventListener('touchstart',e=>{e.preventDefault();startRec();},{passive:false});
+  btn.addEventListener('touchend',e=>{e.preventDefault();if(isRec)recog.stop();},{passive:false});
+  btn.addEventListener('mousedown',e=>{startRec();});
+  btn.addEventListener('mouseup',e=>{if(isRec)recog.stop();});
 }else{
-  document.getElementById('micBtn').disabled=true;
   document.getElementById('micBtn').style.opacity='0.4';
   document.getElementById('micLabel').textContent='직접 입력 탭을 사용하세요';
+  document.getElementById('micBtn').disabled=true;
 }
+
 function switchTab(t){
   curTab=t;
   document.getElementById('tabMic').className='tab'+(t==='mic'?' active':'');
@@ -151,22 +208,23 @@ function switchTab(t){
   document.getElementById('addBtn').disabled=!inputText.trim();
 }
 function onManualInput(){inputText=document.getElementById('manualInput').value;document.getElementById('addBtn').disabled=!inputText.trim();}
-function toggleMic(){if(!recog)return;if(isRec)recog.stop();else startRec();}
+
 function startRec(){
+  if(isRec)return;
   isRec=true;
   const btn=document.getElementById('micBtn');
   btn.className='mic-btn rec';
-  btn.innerHTML=`<svg class="pulsing" viewBox="0 0 24 24" fill="#fff" width="30" height="30"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>`;
-  document.getElementById('micLabel').textContent='듣는 중... 말씀하세요';
-  setStatus('🎙 음성 인식 중...','');
+  btn.innerHTML=`<svg class="pulsing" viewBox="0 0 24 24" fill="#fff" width="34" height="34"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>`;
+  document.getElementById('micLabel').textContent='듣는 중...';
+  setStatus('🎙 말씀하세요!','');
   try{recog.start();}catch(e){}
 }
 function stopRec(){
   isRec=false;
   const btn=document.getElementById('micBtn');
   btn.className='mic-btn';
-  btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="30" height="30"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>`;
-  document.getElementById('micLabel').textContent=inputText?'"일정 추가" 버튼을 누르세요':'눌러서 말하기';
+  btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>`;
+  document.getElementById('micLabel').textContent=inputText?'"일정 추가" 버튼을 누르세요':'꾹 누르고 말하세요';
   if(inputText)setStatus('인식 완료! 일정 추가 버튼을 누르세요.','ok');
 }
 function clearInput(){
@@ -179,37 +237,25 @@ function clearInput(){
   setStatus('','');
 }
 function setStatus(t,cls){const s=document.getElementById('status');s.textContent=t;s.className='status'+(cls?' '+cls:'');}
-async function parseAndAdd(){
+
+function parseAndAdd(){
   const txt=(curTab==='text'?document.getElementById('manualInput').value:inputText).trim();
   if(!txt)return;
   document.getElementById('addBtn').disabled=true;
-  document.getElementById('loader').className='loading-overlay show';
-  const mo=vm+1;
+
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',max_tokens:800,
-        messages:[{role:'user',content:`현재 ${vy}년 ${mo}월 기준. 아래 텍스트에서 일정 추출해 JSON 배열만 반환. 설명없이 JSON만.\n형식:[{"date":"YYYY-MM-DD","time":"HH:MM","title":"제목"}]\n시간없으면 time="".\n날짜에 월 없으면 ${mo}월 기준.\n시간변환(기본오후):한시=13:00,두시=14:00,세시=15:00,네시=16:00,다섯시=17:00,여섯시=18:00,일곱시=19:00,여덟시=20:00,아홉시=09:00,열시=10:00,열한시=11:00,열두시=12:00.\n텍스트:${txt}`}]
-      })
-    });
-    const data=await resp.json();
-    let raw=(data.content||[]).map(c=>c.text||'').join('');
-    raw=raw.replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(raw);
-    if(!Array.isArray(parsed)||parsed.length===0)throw new Error('no events');
+    const parsed = parseScheduleLocally(txt);
+    if(!parsed||parsed.length===0)throw new Error('no events');
     parsed.forEach(ev=>{events.push({id:Date.now()+Math.random(),...ev});});
     try{localStorage.setItem('vc_ev3',JSON.stringify(events));}catch(e){}
-    document.getElementById('loader').className='loading-overlay';
     setStatus(`✓ 일정 ${parsed.length}개 추가됐어요!`,'ok');
     clearInput();renderCal();renderList();
   }catch(e){
-    document.getElementById('loader').className='loading-overlay';
-    setStatus('인식 실패. 다시 시도해보세요.','err');
+    setStatus('일정을 인식하지 못했어요. 다시 말해보세요.','err');
     document.getElementById('addBtn').disabled=false;
   }
 }
+
 function moveMonth(d){vm+=d;if(vm>11){vm=0;vy++;}if(vm<0){vm=11;vy--;}renderCal();renderList();}
 function renderCal(){
   const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -261,7 +307,7 @@ function exportICS(){
     const[y,mo,d]=p;
     if(ev.time){
       const[h,mi]=ev.time.split(':');const hE=String(parseInt(h)+1).padStart(2,'0');
-      ics+=`BEGIN:VEVENT\r\nUID:${Date.now()}-${Math.random()}@vc\r\nDTSTART:${y}${mo}${d}T${h.padStart(2,'0')}${mi}00\r\nDTEND:${y}${mo}${d}T${hE}${mi}00\r\nSUMMARY:${ev.title}\r\nEND:VEVENT\r\n`;
+      ics+=`BEGIN:VEVENT\r\nUID:${Date.now()}-${Math.random()}@vc\r\nDTSTART:${y}${mo}${d}T${h}${mi}00\r\nDTEND:${y}${mo}${d}T${hE}${mi}00\r\nSUMMARY:${ev.title}\r\nEND:VEVENT\r\n`;
     }else{
       ics+=`BEGIN:VEVENT\r\nUID:${Date.now()}-${Math.random()}@vc\r\nDTSTART;VALUE=DATE:${y}${mo}${d}\r\nDTEND;VALUE=DATE:${y}${mo}${d}\r\nSUMMARY:${ev.title}\r\nEND:VEVENT\r\n`;
     }
