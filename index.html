@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="음성 캘린더">
+<title>음성 일정 캘린더</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;color:#1a1a1a}
+.app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;padding:0 0 48px}
+.topbar{background:#185FA5;color:#fff;padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.topbar-title{font-size:17px;font-weight:600}
+.topbar-sub{font-size:12px;opacity:.8;margin-top:2px}
+.section{padding:16px}
+.tab-row{display:flex;border-radius:10px;overflow:hidden;border:1px solid #ddd;margin-bottom:14px}
+.tab{flex:1;padding:10px 0;font-size:14px;font-weight:500;text-align:center;cursor:pointer;background:#fff;color:#666;border:none;transition:all .15s}
+.tab.active{background:#185FA5;color:#fff}
+.mic-area{display:flex;flex-direction:column;align-items:center;padding:8px 0 12px}
+.mic-btn{width:80px;height:80px;border-radius:50%;background:#185FA5;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(24,95,165,0.3)}
+.mic-btn.rec{background:#E24B4A;box-shadow:0 2px 8px rgba(226,75,74,0.4),0 0 0 12px rgba(226,75,74,0.12)}
+.mic-label{margin-top:10px;font-size:13px;color:#666;font-weight:500}
+.transcript{background:#f9f9f9;border:1px solid #e8e8e8;border-radius:12px;padding:12px 14px;min-height:52px;font-size:14px;color:#1a1a1a;line-height:1.6;margin-bottom:12px;word-break:break-all}
+.transcript.ph{color:#aaa;font-size:13px}
+.manual-input{width:100%;border:1px solid #ddd;border-radius:12px;padding:12px 14px;font-size:14px;color:#1a1a1a;resize:none;background:#fff;line-height:1.6;outline:none;font-family:inherit}
+.manual-input:focus{border-color:#185FA5}
+.btn-row{display:flex;gap:8px;margin-top:10px}
+.btn{flex:1;padding:13px 0;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;border:1.5px solid #ddd;background:#fff;color:#1a1a1a;min-height:48px;font-family:inherit}
+.btn.primary{background:#185FA5;border-color:#185FA5;color:#fff}
+.btn:disabled{opacity:.4}
+.status{text-align:center;font-size:13px;color:#888;margin-top:10px;min-height:20px}
+.status.ok{color:#2d7a2d}
+.status.err{color:#c0392b}
+.divider{height:8px;background:#f5f5f5}
+.cal-section{padding:16px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-nav-btn{background:#fff;border:1px solid #ddd;border-radius:8px;padding:7px 14px;font-size:14px;cursor:pointer;color:#444;min-height:36px;font-family:inherit}
+.cal-month{font-size:16px;font-weight:600;color:#1a1a1a}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dow{text-align:center;font-size:11px;color:#aaa;padding:4px 0;font-weight:600}
+.cell{min-height:48px;border-radius:8px;padding:5px 3px;background:#fff;border:1px solid #f0f0f0;overflow:hidden}
+.cell.dim{opacity:.25}
+.cell.today{border-color:#185FA5;background:#EBF3FB}
+.dn{font-size:12px;color:#555;font-weight:500;text-align:center}
+.cell.today .dn{color:#185FA5;font-weight:700}
+.edot{display:block;font-size:9px;background:#B5D4F4;color:#0C447C;border-radius:3px;padding:1px 2px;margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;font-weight:500}
+.ev-section{padding:0 16px 16px}
+.ev-label{font-size:13px;font-weight:600;color:#666;margin-bottom:10px;padding-top:4px}
+.ev-card{display:flex;align-items:stretch;gap:10px;background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.ev-bar{width:4px;border-radius:2px;background:#185FA5;flex-shrink:0}
+.ev-body{flex:1;min-width:0}
+.ev-title{font-size:15px;font-weight:600;color:#1a1a1a}
+.ev-meta{font-size:12px;color:#888;margin-top:3px}
+.ev-del{background:none;border:none;cursor:pointer;color:#ccc;font-size:22px;padding:0;align-self:center;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.empty{font-size:14px;color:#bbb;text-align:center;padding:28px 0}
+.export-btn{width:100%;margin-top:4px;padding:14px 0;border-radius:12px;font-size:15px;font-weight:600;border:1.5px solid #ddd;background:#fff;color:#185FA5;cursor:pointer;font-family:inherit}
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,0.85);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loading-overlay.show{display:flex}
+.spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#185FA5;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:#555;font-weight:500}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulsing{animation:pulse 1s infinite}
+</style>
+</head>
+<body>
+<div class="loading-overlay" id="loader">
+  <div class="spinner"></div>
+  <div class="loading-text">AI가 일정 분석 중...</div>
+</div>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">음성 일정 캘린더</div>
+      <div class="topbar-sub">말하면 바로 저장돼요</div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="tab-row">
+      <button class="tab active" id="tabMic" onclick="switchTab('mic')">🎙 음성 입력</button>
+      <button class="tab" id="tabText" onclick="switchTab('text')">⌨️ 직접 입력</button>
+    </div>
+    <div id="micSection">
+      <div class="mic-area">
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="30" height="30">
+            <rect x="9" y="2" width="6" height="11" rx="3"/>
+            <path d="M5 10a7 7 0 0 0 14 0"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+            <line x1="8" y1="22" x2="16" y2="22"/>
+          </svg>
+        </button>
+        <span class="mic-label" id="micLabel">눌러서 말하기</span>
+      </div>
+      <div id="transcript" class="transcript ph">인식된 내용이 여기 표시돼요<br>예) "29일 세시 송탄 설치 30일 네시 평택 세척"</div>
+    </div>
+    <div id="textSection" style="display:none">
+      <textarea class="manual-input" id="manualInput" rows="3" placeholder="예) 29일 세시 송탄 설치, 30일 네시 평택 세척" oninput="onManualInput()"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="addBtn" onclick="parseAndAdd()" disabled>일정 추가</button>
+      <button class="btn" onclick="clearInput()">지우기</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+  <div class="divider"></div>
+  <div class="cal-section">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="moveMonth(-1)">◀ 이전</button>
+      <span class="cal-month" id="calMonth"></span>
+      <button class="cal-nav-btn" onclick="moveMonth(1)">다음 ▶</button>
+    </div>
+    <div class="grid7" id="calGrid"></div>
+  </div>
+  <div class="divider"></div>
+  <div class="ev-section">
+    <div class="ev-label" id="evLabel">이번 달 일정</div>
+    <div id="evList"></div>
+    <button class="export-btn" id="expBtn" style="display:none" onclick="exportICS()">📅 캘린더 파일(.ics)로 내보내기</button>
+  </div>
+</div>
+<script>
+let events=[],inputText='',isRec=false,recog=null;
+let vy=new Date().getFullYear(),vm=new Date().getMonth(),curTab='mic';
+try{events=JSON.parse(localStorage.getItem('vc_ev3')||'[]');}catch(e){}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){
+  recog=new SR();recog.lang='ko-KR';recog.interimResults=true;recog.continuous=false;
+  recog.onresult=e=>{
+    let fin='',intr='';
+    for(let r of e.results){if(r.isFinal)fin+=r[0].transcript;else intr+=r[0].transcript;}
+    const el=document.getElementById('transcript');
+    if(fin){inputText=fin;el.textContent=fin;el.className='transcript';document.getElementById('addBtn').disabled=false;}
+    else if(intr){el.textContent=intr;el.className='transcript';}
+  };
+  recog.onend=()=>stopRec();
+  recog.onerror=e=>{stopRec();setStatus('마이크 오류: '+e.error,'err');};
+}else{
+  document.getElementById('micBtn').disabled=true;
+  document.getElementById('micBtn').style.opacity='0.4';
+  document.getElementById('micLabel').textContent='직접 입력 탭을 사용하세요';
+}
+function switchTab(t){
+  curTab=t;
+  document.getElementById('tabMic').className='tab'+(t==='mic'?' active':'');
+  document.getElementById('tabText').className='tab'+(t==='text'?' active':'');
+  document.getElementById('micSection').style.display=t==='mic'?'':'none';
+  document.getElementById('textSection').style.display=t==='text'?'':'none';
+  if(t==='text'){inputText=document.getElementById('manualInput').value;}
+  document.getElementById('addBtn').disabled=!inputText.trim();
+}
+function onManualInput(){inputText=document.getElementById('manualInput').value;document.getElementById('addBtn').disabled=!inputText.trim();}
+function toggleMic(){if(!recog)return;if(isRec)recog.stop();else startRec();}
+function startRec(){
+  isRec=true;
+  const btn=document.getElementById('micBtn');
+  btn.className='mic-btn rec';
+  btn.innerHTML=`<svg class="pulsing" viewBox="0 0 24 24" fill="#fff" width="30" height="30"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>`;
+  document.getElementById('micLabel').textContent='듣는 중... 말씀하세요';
+  setStatus('🎙 음성 인식 중...','');
+  try{recog.start();}catch(e){}
+}
+function stopRec(){
+  isRec=false;
+  const btn=document.getElementById('micBtn');
+  btn.className='mic-btn';
+  btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="30" height="30"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>`;
+  document.getElementById('micLabel').textContent=inputText?'"일정 추가" 버튼을 누르세요':'눌러서 말하기';
+  if(inputText)setStatus('인식 완료! 일정 추가 버튼을 누르세요.','ok');
+}
+function clearInput(){
+  inputText='';
+  const el=document.getElementById('transcript');
+  el.innerHTML='인식된 내용이 여기 표시돼요<br>예) "29일 세시 송탄 설치 30일 네시 평택 세척"';
+  el.className='transcript ph';
+  document.getElementById('manualInput').value='';
+  document.getElementById('addBtn').disabled=true;
+  setStatus('','');
+}
+function setStatus(t,cls){const s=document.getElementById('status');s.textContent=t;s.className='status'+(cls?' '+cls:'');}
+async function parseAndAdd(){
+  const txt=(curTab==='text'?document.getElementById('manualInput').value:inputText).trim();
+  if(!txt)return;
+  document.getElementById('addBtn').disabled=true;
+  document.getElementById('loader').className='loading-overlay show';
+  const mo=vm+1;
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',max_tokens:800,
+        messages:[{role:'user',content:`현재 ${vy}년 ${mo}월 기준. 아래 텍스트에서 일정 추출해 JSON 배열만 반환. 설명없이 JSON만.\n형식:[{"date":"YYYY-MM-DD","time":"HH:MM","title":"제목"}]\n시간없으면 time="".\n날짜에 월 없으면 ${mo}월 기준.\n시간변환(기본오후):한시=13:00,두시=14:00,세시=15:00,네시=16:00,다섯시=17:00,여섯시=18:00,일곱시=19:00,여덟시=20:00,아홉시=09:00,열시=10:00,열한시=11:00,열두시=12:00.\n텍스트:${txt}`}]
+      })
+    });
+    const data=await resp.json();
+    let raw=(data.content||[]).map(c=>c.text||'').join('');
+    raw=raw.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(raw);
+    if(!Array.isArray(parsed)||parsed.length===0)throw new Error('no events');
+    parsed.forEach(ev=>{events.push({id:Date.now()+Math.random(),...ev});});
+    try{localStorage.setItem('vc_ev3',JSON.stringify(events));}catch(e){}
+    document.getElementById('loader').className='loading-overlay';
+    setStatus(`✓ 일정 ${parsed.length}개 추가됐어요!`,'ok');
+    clearInput();renderCal();renderList();
+  }catch(e){
+    document.getElementById('loader').className='loading-overlay';
+    setStatus('인식 실패. 다시 시도해보세요.','err');
+    document.getElementById('addBtn').disabled=false;
+  }
+}
+function moveMonth(d){vm+=d;if(vm>11){vm=0;vy++;}if(vm<0){vm=11;vy--;}renderCal();renderList();}
+function renderCal(){
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('calMonth').textContent=`${vy}년 ${months[vm]}`;
+  const grid=document.getElementById('calGrid');
+  const days=['일','월','화','수','목','금','토'];
+  let html=days.map(d=>`<div class="dow">${d}</div>`).join('');
+  const first=new Date(vy,vm,1).getDay();
+  const total=new Date(vy,vm+1,0).getDate();
+  const prev=new Date(vy,vm,0).getDate();
+  const today=new Date();
+  for(let i=0;i<first;i++)html+=`<div class="cell dim"><div class="dn">${prev-first+1+i}</div></div>`;
+  for(let d=1;d<=total;d++){
+    const isToday=today.getFullYear()===vy&&today.getMonth()===vm&&today.getDate()===d;
+    const dateStr=`${vy}-${String(vm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dots=events.filter(e=>e.date===dateStr).map(e=>`<span class="edot">${e.title}</span>`).join('');
+    html+=`<div class="cell${isToday?' today':''}"><div class="dn">${d}</div>${dots}</div>`;
+  }
+  const rem=(first+total)%7;
+  if(rem>0)for(let i=1;i<=7-rem;i++)html+=`<div class="cell dim"><div class="dn">${i}</div></div>`;
+  grid.innerHTML=html;
+}
+function renderList(){
+  const mo=String(vm+1).padStart(2,'0');
+  const prefix=`${vy}-${mo}`;
+  const monthEvs=events.filter(e=>e.date&&e.date.startsWith(prefix));
+  monthEvs.sort((a,b)=>(a.date+(a.time||''))>(b.date+(b.time||''))?1:-1);
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('evLabel').textContent=`${months[vm]} 일정 (${monthEvs.length}개)`;
+  const list=document.getElementById('evList');
+  if(!monthEvs.length){list.innerHTML=`<div class="empty">이번 달 일정이 없어요<br>위에서 음성으로 추가해보세요</div>`;document.getElementById('expBtn').style.display='none';return;}
+  list.innerHTML=monthEvs.map(ev=>{
+    const d=ev.date?ev.date.replace(/(\d{4})-(\d{2})-(\d{2})/,'$2월 $3일'):'';
+    const t=ev.time?` ${ev.time}`:'';
+    return `<div class="ev-card"><div class="ev-bar"></div><div class="ev-body"><div class="ev-title">${ev.title}</div><div class="ev-meta">${d}${t}</div></div><button class="ev-del" onclick="delEvent('${ev.id}')">×</button></div>`;
+  }).join('');
+  document.getElementById('expBtn').style.display=events.length?'block':'none';
+}
+function delEvent(id){
+  if(!confirm('삭제할까요?'))return;
+  events=events.filter(e=>String(e.id)!==String(id));
+  try{localStorage.setItem('vc_ev3',JSON.stringify(events));}catch(e){}
+  renderCal();renderList();
+}
+function exportICS(){
+  let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//음성캘린더//KO\r\nCALSCALE:GREGORIAN\r\n';
+  events.forEach(ev=>{
+    const p=(ev.date||'').split('-');if(p.length<3)return;
+    const[y,mo,d]=p;
+    if(ev.time){
+      const[h,mi]=ev.time.split(':');const hE=String(parseInt(h)+1).padStart(2,'0');
+      ics+=`BEGIN:VEVENT\r\nUID:${Date.now()}-${Math.random()}@vc\r\nDTSTART:${y}${mo}${d}T${h.padStart(2,'0')}${mi}00\r\nDTEND:${y}${mo}${d}T${hE}${mi}00\r\nSUMMARY:${ev.title}\r\nEND:VEVENT\r\n`;
+    }else{
+      ics+=`BEGIN:VEVENT\r\nUID:${Date.now()}-${Math.random()}@vc\r\nDTSTART;VALUE=DATE:${y}${mo}${d}\r\nDTEND;VALUE=DATE:${y}${mo}${d}\r\nSUMMARY:${ev.title}\r\nEND:VEVENT\r\n`;
+    }
+  });
+  ics+='END:VCALENDAR';
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='일정.ics';a.click();URL.revokeObjectURL(url);
+  setStatus('📅 파일 저장 완료!','ok');
+}
+renderCal();renderList();
+</script>
+</body>
+</html>
